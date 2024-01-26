@@ -1,17 +1,16 @@
 use ark_bls12_381::{g2::Config, Bls12_381, Fr, G1Affine, G1Projective, G2Affine, G2Projective};
 use ark_ec::{
-    hashing::{curve_maps::wb::WBMap, map_to_curve_hasher::MapToCurveBasedHasher, HashToCurve},
-    pairing::Pairing,
-    AffineRepr, CurveGroup,
+    hashing::{curve_maps::wb::WBMap, map_to_curve_hasher::MapToCurveBasedHasher, HashToCurve}, pairing::Pairing, AffineRepr, CurveGroup, Group
 };
-use ark_ff::field_hashers::DefaultFieldHasher;
+
+use ark_ff::{field_hashers::DefaultFieldHasher, BigInt, Field};
 
 use ark_serialize::{CanonicalDeserialize, Read};
 
 use prompt::{puzzle, welcome};
 
 use sha2::Sha256;
-use std::fs::File;
+use std::{fs::File, ops::Sub};
 use std::io::Cursor;
 use std::ops::{Mul, Neg};
 
@@ -27,6 +26,9 @@ fn pok_prove(sk: Fr, i: usize) -> G2Affine {
     derive_point_for_pok(i).mul(sk).into()
 }
 
+// pok_verify(new_key, new_key_index, new_proof);
+//@note the point in G2 used for the proof/pairing is not G2Affine::generator()
+//@note e(pk, (i+1)H) = e(G, sk * (i+1) * H)
 fn pok_verify(pk: G1Affine, i: usize, proof: G2Affine) {
     assert!(Bls12_381::multi_pairing(
         &[pk, G1Affine::generator()],
@@ -49,6 +51,10 @@ fn bls_sign(sk: Fr, msg: &[u8]) -> G2Affine {
     hasher().hash(msg).unwrap().mul(sk).into_affine()
 }
 
+/*
+@note
+•   checks that e(pk, h(msg)) = e(g1, sk * h(msg)) 
+*/
 fn bls_verify(pk: G1Affine, sig: G2Affine, msg: &[u8]) {
     assert!(Bls12_381::multi_pairing(
         &[pk, G1Affine::generator()],
@@ -76,22 +82,41 @@ fn main() {
         .for_each(|(i, (pk, proof))| pok_verify(*pk, i, *proof));
 
     let new_key_index = public_keys.len();
-    let message = b"YOUR GITHUB USERNAME";
+    let message = b"0xArsi";
 
     /* Enter solution here */
 
-    let new_key = G1Affine::zero();
-    let new_proof = G2Affine::zero();
-    let aggregate_signature = G2Affine::zero();
+   let secret_key = Fr::from(64 as u64);
+   let new_key = public_keys
+                                   .iter()
+                                   .fold(
+                                    G1Projective::generator().mul(secret_key), 
+                                   |acc, (pk, _)|acc.sub(pk)
+                                   ).into_affine();
 
+    //@note each proof p_i = (i * sk_i)H, where H is the random point chosen by derive_point_for_pok
+   let new_proof = public_keys
+                                   .iter()
+                                   .enumerate()
+                                   .fold(
+                                    derive_point_for_pok(new_key_index).mul(secret_key).mul(Fr::from(new_key_index as u64 + 1).inverse().unwrap()),
+                                    |acc, (i, (_, proof))|{
+                                       let scaled_proof = proof.mul(Fr::from(i as u64 + 1).inverse().unwrap());
+                                       acc.sub(scaled_proof)
+                                   }
+                                   ).mul(Fr::from(new_key_index as u64 + 1)).into_affine();
+
+    
+    let aggregate_signature = bls_sign(secret_key, message);
     /* End of solution */
-
     pok_verify(new_key, new_key_index, new_proof);
+    println!("proof of key verification succeeded");
     let aggregate_key = public_keys
-        .iter()
-        .fold(G1Projective::from(new_key), |acc, (pk, _)| acc + pk)
-        .into_affine();
-    bls_verify(aggregate_key, aggregate_signature, message)
+       .iter()
+       .fold(G1Projective::from(new_key), |acc, (pk, _)| acc + pk)
+       .into_affine();
+    bls_verify(aggregate_key, aggregate_signature, message);
+    println!("aggregate signature verification succeeded");
 }
 
 const PUZZLE_DESCRIPTION: &str = r"
