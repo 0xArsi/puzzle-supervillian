@@ -1,5 +1,7 @@
 # puzzle-supervillain
 
+# This is my solution to the Supervillian puzzle from ZKHacks IV. Solution is in src/main.rs
+
 **DO NOT FORK THE REPOSITORY, AS IT WILL MAKE YOUR SOLUTION PUBLIC. INSTEAD, CLONE IT AND ADD A NEW REMOTE TO A PRIVATE REPOSITORY, OR SUBMIT A GIST**
 
 Trying it out
