@@ -2,7 +2,7 @@
 
 # This is my solution to the Supervillian puzzle from ZKHacks IV. Solution is in src/main.rs
 
-**DO NOT FORK THE REPOSITORY, AS IT WILL MAKE YOUR SOLUTION PUBLIC. INSTEAD, CLONE IT AND ADD A NEW REMOTE TO A PRIVATE REPOSITORY, OR SUBMIT A GIST**
+## Writeup: https://gist.github.com/0xArsi/0a855167a54ceeaf585d68d0d1a72f65
 
 Trying it out
 =============
